@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.*;
+import java.util.Scanner;
 import java.util.concurrent.*;
 
 public class BruteForceServer {
@@ -110,9 +111,9 @@ class ClientHandler implements Runnable {
             Master.targetUsername = in.readUTF();
 
             // Find the password associated with the entered username
-            try (BufferedReader reader = new BufferedReader(new FileReader("src/password.txt"))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
+            try (Scanner scanner = new Scanner(new FileReader("src/password.txt"))) {
+                while (scanner.hasNextLine()) {
+                    String line = scanner.nextLine();
                     String[] parts = line.split(":");
                     if (parts.length == 2 && parts[0].equals(Master.targetUsername)) {
                         passwordQueue.put(parts[1]); // Add password to queue for brute force
