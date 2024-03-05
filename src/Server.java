@@ -35,7 +35,7 @@ public class Server {
                 String incomingText = inputStream.readUTF();
                 System.out.println("Text received: " + incomingText);
 
-                // Check if incoming request is for a password
+
                 if (incomingText.startsWith("PASSWORD:")) {
                     String[] parts = incomingText.split(":");
                     if (parts.length == 2) {
