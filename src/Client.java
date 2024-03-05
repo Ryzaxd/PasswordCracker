@@ -8,27 +8,26 @@ public class Client {
 
     public static void main(String[] args) {
 
-        try {
-            Socket socket = new Socket("localhost", 1978);
-            DataInputStream inputStream = new DataInputStream(socket.getInputStream());
-            DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
+        try (Socket socket = new Socket("localhost", 1978);
+             DataInputStream inputStream = new DataInputStream(socket.getInputStream());
+             DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
+             Scanner scanner = new Scanner(System.in)) {
 
-            Scanner scanner = new Scanner(System.in);
             while (true) {
-                System.out.println("Enter a username to get the password or 'exit' to quit:");
+                System.out.println("Enter a username or 'exit' to quit: ");
                 String input = scanner.nextLine();
 
                 if ("exit".equalsIgnoreCase(input)) {
+                    outputStream.writeUTF(input);
+                    outputStream.flush();
                     break;
                 }
 
                 outputStream.writeUTF(input);
                 outputStream.flush();
-                System.out.println(inputStream.readUTF());
+                String response = inputStream.readUTF();
+                System.out.println(response);
             }
-
-            scanner.close();
-            socket.close();
 
         } catch (IOException e) {
             e.printStackTrace();

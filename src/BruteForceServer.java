@@ -1,8 +1,7 @@
 import java.io.*;
 import java.net.*;
 import java.util.concurrent.*;
-import java.util.Queue;
-import java.util.Scanner;
+import java.util.Base64;
 
 public class BruteForceServer {
 
@@ -43,6 +42,7 @@ public class BruteForceServer {
 class Master implements Runnable {
     private final BlockingQueue<String> passwordQueue;
     public static String targetUsername;
+    public static String decodedPassword;
 
     public Master(BlockingQueue<String> passwordQueue) {
         this.passwordQueue = passwordQueue;
@@ -50,7 +50,34 @@ class Master implements Runnable {
 
     @Override
     public void run() {
-        // Nothing needs to be done here since client threads handle username/password retrieval
+        while (true) {
+            try {
+                // Take a guess from the queue
+                String guess = passwordQueue.take();
+
+                // Check if the guess is correct
+                try (BufferedReader reader = new BufferedReader(new FileReader("src/password.txt"))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        String[] parts = line.split(":");
+                        if (parts.length == 2) {
+                            // Decode the Base64 encoded password
+                            byte[] decodedBytes = Base64.getDecoder().decode(parts[1]);
+                            String decodedPassword = new String(decodedBytes);
+
+                            if (decodedPassword.equals(guess)) {
+                                System.out.println("Password found for " + targetUsername + ": " + guess);
+                                // Notify other components about the successful match
+                                Master.decodedPassword = decodedPassword;
+                                return;
+                            }
+                        }
+                    }
+                }
+            } catch (IOException | InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
 
@@ -75,15 +102,16 @@ class Slave implements Runnable {
     }
 
     private void bruteForce(String targetPassword) {
-        // Read passwords from password.txt and compare with targetPassword
-        try (BufferedReader reader = new BufferedReader(new FileReader("src/password.txt"))) {
+        // Read the dictionary file line by line and add each line as a guess to the queue
+        try (BufferedReader reader = new BufferedReader(new FileReader("src/webster-dictionary.txt"))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(":");
-                if (parts.length == 2 && parts[1].equals(targetPassword)) {
-                    System.out.println("Password found for " + Master.targetUsername + ": " + parts[1]);
-                    // Notify Master about the successful match
-                    return;
+                String encodedGuess = Base64.getEncoder().encodeToString(line.getBytes());
+    
+                try {
+                    passwordQueue.put(encodedGuess);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
             }
         } catch (IOException e) {
@@ -94,9 +122,9 @@ class Slave implements Runnable {
 
 class ClientHandler implements Runnable {
     private Socket clientSocket;
-    private Queue<String> passwordQueue;
+    private BlockingQueue<String> passwordQueue;
 
-    public ClientHandler(Socket clientSocket, Queue<String> passwordQueue) {
+    public ClientHandler(Socket clientSocket, BlockingQueue<String> passwordQueue) {
         this.clientSocket = clientSocket;
         this.passwordQueue = passwordQueue;
     }
@@ -109,32 +137,24 @@ class ClientHandler implements Runnable {
         ) {
             while (true) {
                 Master.targetUsername = in.readUTF();
-    
+
                 if ("exit".equalsIgnoreCase(Master.targetUsername)) {
                     break;
                 }
-    
-                // Find the password associated with the entered username
-                try (Scanner scanner = new Scanner(new FileReader("src/password.txt"))) {
-                    boolean usernameFound = false;
-                    while (scanner.hasNextLine()) {
-                        String line = scanner.nextLine();
-                        String[] parts = line.split(":");
-                        if (parts.length == 2 && parts[0].equals(Master.targetUsername)) {
-                            ((BlockingQueue<String>) passwordQueue).put(parts[1]); // Add password to queue for brute force
-                            out.writeUTF("Password found for " + Master.targetUsername + ": " + parts[1]);
-                            usernameFound = true;
-                            break; // Stop searching for the username once found
-                        }
-                    }
-                    if (!usernameFound) {
-                        out.writeUTF("Username not found.");
-                    }
-                } catch (IOException | InterruptedException e) {
-                    e.printStackTrace();
+
+                // Add the username to the queue for brute force
+                passwordQueue.put(Master.targetUsername);
+
+                // Send a message back to the client indicating that the username was received
+                out.writeUTF("Username received: " + Master.targetUsername);
+
+                if (Master.decodedPassword != null && !Master.decodedPassword.isEmpty()) {
+                    out.writeUTF("Password found for " + Master.targetUsername + ": " + Master.decodedPassword);
+                } else {
+                    out.writeUTF("Password not found for " + Master.targetUsername);
                 }
             }
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
     }
