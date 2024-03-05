@@ -1,8 +1,6 @@
 import java.io.*;
 import java.net.*;
 import java.util.concurrent.*;
-import java.io.*;
-import java.net.*;
 import java.util.Queue;
 import java.util.Scanner;
 
@@ -124,7 +122,7 @@ class ClientHandler implements Runnable {
                         String[] parts = line.split(":");
                         if (parts.length == 2 && parts[0].equals(Master.targetUsername)) {
                             ((BlockingQueue<String>) passwordQueue).put(parts[1]); // Add password to queue for brute force
-                            out.writeUTF("Password found: " + parts[1]);
+                            out.writeUTF("Password found for " + Master.targetUsername + ": " + parts[1]);
                             usernameFound = true;
                             break; // Stop searching for the username once found
                         }

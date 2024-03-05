@@ -27,7 +27,7 @@ public class Client {
                 System.out.println(inputStream.readUTF());
             }
 
-            // Close the socket when done
+            scanner.close();
             socket.close();
 
         } catch (IOException e) {
