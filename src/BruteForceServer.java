@@ -1,7 +1,10 @@
 import java.io.*;
 import java.net.*;
-import java.util.Scanner;
 import java.util.concurrent.*;
+import java.io.*;
+import java.net.*;
+import java.util.Queue;
+import java.util.Scanner;
 
 public class BruteForceServer {
 
@@ -92,10 +95,10 @@ class Slave implements Runnable {
 }
 
 class ClientHandler implements Runnable {
-    private final Socket clientSocket;
-    private final BlockingQueue<String> passwordQueue;
+    private Socket clientSocket;
+    private Queue<String> passwordQueue;
 
-    public ClientHandler(Socket clientSocket, BlockingQueue<String> passwordQueue) {
+    public ClientHandler(Socket clientSocket, Queue<String> passwordQueue) {
         this.clientSocket = clientSocket;
         this.passwordQueue = passwordQueue;
     }
@@ -106,24 +109,32 @@ class ClientHandler implements Runnable {
                 DataInputStream in = new DataInputStream(clientSocket.getInputStream());
                 DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream())
         ) {
-            // Prompt the client for a username
-            out.writeUTF("Enter username: ");
-            Master.targetUsername = in.readUTF();
-
-            // Find the password associated with the entered username
-            try (Scanner scanner = new Scanner(new FileReader("src/password.txt"))) {
-                while (scanner.hasNextLine()) {
-                    String line = scanner.nextLine();
-                    String[] parts = line.split(":");
-                    if (parts.length == 2 && parts[0].equals(Master.targetUsername)) {
-                        passwordQueue.put(parts[1]); // Add password to queue for brute force
-                        out.writeUTF("Password found: " + parts[1]);
-                        return; // Stop searching for the username once found
-                    }
+            while (true) {
+                Master.targetUsername = in.readUTF();
+    
+                if ("exit".equalsIgnoreCase(Master.targetUsername)) {
+                    break;
                 }
-                out.writeUTF("Username not found.");
-            } catch (IOException | InterruptedException e) {
-                e.printStackTrace();
+    
+                // Find the password associated with the entered username
+                try (Scanner scanner = new Scanner(new FileReader("src/password.txt"))) {
+                    boolean usernameFound = false;
+                    while (scanner.hasNextLine()) {
+                        String line = scanner.nextLine();
+                        String[] parts = line.split(":");
+                        if (parts.length == 2 && parts[0].equals(Master.targetUsername)) {
+                            ((BlockingQueue<String>) passwordQueue).put(parts[1]); // Add password to queue for brute force
+                            out.writeUTF("Password found: " + parts[1]);
+                            usernameFound = true;
+                            break; // Stop searching for the username once found
+                        }
+                    }
+                    if (!usernameFound) {
+                        out.writeUTF("Username not found.");
+                    }
+                } catch (IOException | InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();

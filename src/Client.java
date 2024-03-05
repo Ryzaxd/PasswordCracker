@@ -1,5 +1,7 @@
-import java.io.*;
-import java.net.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.Socket;
 import java.util.Scanner;
 
 public class Client {
@@ -13,25 +15,21 @@ public class Client {
 
             Scanner scanner = new Scanner(System.in);
             while (true) {
-                System.out.println("Welcome to the password checker");
-                System.out.println("Enter username: ");
-                String targetUsername = scanner.nextLine();
-                outputStream.writeUTF(targetUsername);
+                System.out.println("Enter a username to get the password or 'exit' to quit:");
+                String input = scanner.nextLine();
 
-                String response = inputStream.readLine();
-                System.out.println(response);
-
-                if (response.startsWith("Password found")) {
-                    String[] parts = response.split(":");
-                    System.out.println("Password found for " + targetUsername + ": " + parts[1]);
-                    System.out.println("Do you want to continue? (Type 'exit' to quit)");
-                    String choice = scanner.nextLine();
-                    if (choice.equals("exit")) {
-                        break;
-                    }
+                if ("exit".equalsIgnoreCase(input)) {
+                    break;
                 }
+
+                outputStream.writeUTF(input);
+                outputStream.flush();
+                System.out.println(inputStream.readUTF());
             }
+
+            // Close the socket when done
             socket.close();
+
         } catch (IOException e) {
             e.printStackTrace();
         }
