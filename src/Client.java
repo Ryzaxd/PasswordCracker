@@ -14,19 +14,19 @@ public class Client {
              Scanner scanner = new Scanner(System.in)) {
 
             while (true) {
-                System.out.println("Enter a username or 'exit' to quit: ");
+                System.out.println("Enter 'start' or 'exit' to quit: ");
                 String input = scanner.nextLine();
 
-                if ("exit".equalsIgnoreCase(input)) {
+                if ("start".equalsIgnoreCase(input)) {
+                    outputStream.writeUTF(input);
+                    outputStream.flush();
+                    inputStream.readUTF();
+
+                } else if ("exit".equalsIgnoreCase(input)) {
                     outputStream.writeUTF(input);
                     outputStream.flush();
                     break;
                 }
-
-                outputStream.writeUTF(input);
-                outputStream.flush();
-                String response = inputStream.readUTF();
-                System.out.println(response);
             }
 
         } catch (IOException e) {
