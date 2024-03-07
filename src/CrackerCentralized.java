@@ -1,24 +1,20 @@
-import java.io.*;
-import java.net.Socket;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import util.StringUtilities;
 
-public class Slave {
+
+public class CrackerCentralized {
 
     private static MessageDigest messageDigest;
-    private static final String MASTER_HOST = "localhost";
-    private static final int MASTER_PORT = 8080;
     private static final Logger LOGGER = Logger.getLogger("passwordCracker");
 
     static {
@@ -30,69 +26,32 @@ public class Slave {
         }
     }
 
-    public static void main(final String[] args) throws IOException, InterruptedException {
+    public static void main(final String[] args) throws IOException {
+        final long startTime = System.currentTimeMillis();
 
         final List<UserInfo> userInfos = PasswordFileHandler.readPasswordFile("src/passwords.txt");
-        final List<UserInfoClearText> result = new ArrayList<>();
+        final List<UserInfoClearText> result = new ArrayList<UserInfoClearText>();
         FileReader fileReader = null;
         try {
-            Socket socket = new Socket(MASTER_HOST, MASTER_PORT);
-            ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
-            ObjectInputStream inputStream = new ObjectInputStream(socket.getInputStream());
-
             fileReader = new FileReader("src/webster-dictionary.txt");
             final BufferedReader dictionary = new BufferedReader(fileReader);
-
-            int numThreads = 4;
-            ExecutorService executor = Executors.newFixedThreadPool(numThreads);
-            CountDownLatch latch = new CountDownLatch(numThreads);
-
-            List<String> dictionaryEntries = new ArrayList<>();
-            String line;
-            while ((line = dictionary.readLine()) != null) {
-                dictionaryEntries.add(line);
-            }
-            int chunkSize = dictionaryEntries.size() / numThreads;
-
-            List<Future<List<UserInfoClearText>>> futures = new ArrayList<>(); 
-
-            for (int i = 0; i < numThreads; i++) {
-                int start = i * chunkSize;
-                int end = (i == numThreads - 1) ? dictionaryEntries.size() : (i + 1) * chunkSize;
-                List<String> subDictionary = dictionaryEntries.subList(start, end);
-                Callable<List<UserInfoClearText>> task = () -> {
-                    List<UserInfoClearText> partialResult = new ArrayList<>();
-                    for (String dictionaryEntry : subDictionary) {
-                        List<UserInfoClearText> partialResultSingle = checkWordWithVariations(dictionaryEntry, userInfos);
-                        partialResult.addAll(partialResultSingle);
-                    }
-                    latch.countDown();
-                    return partialResult;
-                };
-                futures.add(executor.submit(task));
-            }
-
-            latch.await();
-
-            for (Future<List<UserInfoClearText>> future : futures) {
-                try {
-                    List<UserInfoClearText> partialResult = future.get();
-                    result.addAll(partialResult);
-                } catch (Exception e) {
-                    e.printStackTrace();
+            while (true) {
+                final String dictionaryEntry = dictionary.readLine();
+                if (dictionaryEntry == null) {
+                    break;
                 }
+                final List<UserInfoClearText> partialResult = checkWordWithVariations(dictionaryEntry, userInfos);
+                result.addAll(partialResult);
             }
-
-            outputStream.writeObject(result);
-            System.out.println("Sent result to Master");
-            System.out.println(result);
-
-            executor.shutdown();
         } finally {
             if (fileReader != null) {
                 fileReader.close();
             }
         }
+        final long endTime = System.currentTimeMillis();
+        final long usedTime = endTime - startTime;
+        System.out.println(result);
+        System.out.println("Used time: " + usedTime / 1000 + " seconds = " + usedTime / 60000.0 + " minutes");
     }
 
     static List<UserInfoClearText> checkWordWithVariations(final String dictionaryEntry, final List<UserInfo> userInfos) {
