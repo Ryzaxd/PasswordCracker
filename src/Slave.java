@@ -44,7 +44,7 @@ public class Slave {
             fileReader = new FileReader("src/webster-dictionary.txt");
             final BufferedReader dictionary = new BufferedReader(fileReader);
 
-            int numThreads = 8;
+            int numThreads = 4;
             ExecutorService executor = Executors.newFixedThreadPool(numThreads);
             List<Future<List<UserInfoClearText>>> futures = new ArrayList<>();
 
