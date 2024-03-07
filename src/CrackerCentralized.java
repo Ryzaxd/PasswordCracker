@@ -1,4 +1,3 @@
-
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -11,7 +10,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import util.StringUtilities;
 
-
+// Dette er den udleverede kode fra undervisningen. programmet er modificeret til en Master og Slave model med en socketserver og tråde.
 public class CrackerCentralized {
 
     private static MessageDigest messageDigest;
