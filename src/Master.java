@@ -35,10 +35,6 @@ public class Master {
                             for (UserInfoClearText userInfo : result) {
                                 System.out.println(userInfo.getUsername() + ": " + userInfo.getPassword());
                             }
-                            final long startTime = System.currentTimeMillis();
-                            final long endTime = System.currentTimeMillis();
-                            final long usedTime = endTime - startTime;
-                            System.out.println("Used time: " + usedTime / 1000 + " seconds = " + usedTime / 60000.0 + " minutes");
                         }
                     } catch (IOException | ClassNotFoundException e) {
                         LOGGER.log(Level.SEVERE, e.getMessage());

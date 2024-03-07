@@ -30,7 +30,8 @@ public class Slave {
         }
     }
 
-    public static void main(final String[] args) throws IOException, InterruptedException {
+    public static void main(final String[] args) throws IOException {
+        final long startTime = System.currentTimeMillis();
 
         final List<UserInfo> userInfos = PasswordFileHandler.readPasswordFile("src/passwords.txt");
         final List<UserInfoClearText> result = new ArrayList<>();
@@ -43,9 +44,9 @@ public class Slave {
             fileReader = new FileReader("src/webster-dictionary.txt");
             final BufferedReader dictionary = new BufferedReader(fileReader);
 
-            int numThreads = 4;
+            int numThreads = 8;
             ExecutorService executor = Executors.newFixedThreadPool(numThreads);
-            CountDownLatch latch = new CountDownLatch(numThreads);
+            List<Future<List<UserInfoClearText>>> futures = new ArrayList<>();
 
             List<String> dictionaryEntries = new ArrayList<>();
             String line;
@@ -53,8 +54,6 @@ public class Slave {
                 dictionaryEntries.add(line);
             }
             int chunkSize = dictionaryEntries.size() / numThreads;
-
-            List<Future<List<UserInfoClearText>>> futures = new ArrayList<>(); 
 
             for (int i = 0; i < numThreads; i++) {
                 int start = i * chunkSize;
@@ -66,34 +65,34 @@ public class Slave {
                         List<UserInfoClearText> partialResultSingle = checkWordWithVariations(dictionaryEntry, userInfos);
                         partialResult.addAll(partialResultSingle);
                     }
-                    latch.countDown();
                     return partialResult;
                 };
                 futures.add(executor.submit(task));
-            }
 
-            latch.await();
-
-            for (Future<List<UserInfoClearText>> future : futures) {
                 try {
-                    List<UserInfoClearText> partialResult = future.get();
+                    List<UserInfoClearText> partialResult = futures.get(i).get();
                     result.addAll(partialResult);
+                    outputStream.writeObject(result);
+                    outputStream.flush();
+                    System.out.println("Sent result to Master");
+                    System.out.println(result);
+                    
+                    final long endTime = System.currentTimeMillis();
+                    final long usedTime = endTime - startTime;
+                    System.out.println("Used time: " + usedTime / 1000 + " seconds = " + usedTime / 60000.0 + " minutes");
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
-
-            outputStream.writeObject(result);
-            System.out.println("Sent result to Master");
-            System.out.println(result);
-
+            
+            outputStream.close();
             executor.shutdown();
         } finally {
             if (fileReader != null) {
                 fileReader.close();
             }
         }
-    }
+    } 
 
     static List<UserInfoClearText> checkWordWithVariations(final String dictionaryEntry, final List<UserInfo> userInfos) {
         final List<UserInfoClearText> result = new ArrayList<UserInfoClearText>();
